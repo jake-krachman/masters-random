@@ -16,6 +16,8 @@ function readCount() {
 }
 
 function writeCount(count) {
+  const dir = path.dirname(COUNT_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(COUNT_FILE, JSON.stringify({ count }));
 }
 
