@@ -345,10 +345,16 @@
         count.toLocaleString() + ' clips shuffled';
     }
 
+    // Load current count on page load
+    fetch('/api/count')
+      .then(r => r.json())
+      .then(d => updateShuffleCounter(d.count))
+      .catch(() => {});
+
     function bumpShuffleCount() {
-      fetch('https://api.counterapi.dev/v1/masters-random/shuffles/up')
+      fetch('/api/count', { method: 'POST' })
         .then(r => r.json())
-        .then(d => { if (d.count) updateShuffleCounter(d.count); })
+        .then(d => updateShuffleCounter(d.count))
         .catch(() => { updateShuffleCounter(++totalShuffles); });
     }
 
