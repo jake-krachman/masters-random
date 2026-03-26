@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Masters Vault Clip</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Georgia', serif;
+      background: #0a3d0a;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(255,215,0,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 80%, rgba(0,60,0,0.4) 0%, transparent 60%),
+        #0a3d0a;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 560px;
+      padding: 40px 24px;
+    }
+
+    h1 {
+      font-size: 14px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: #d4af37;
+      margin-bottom: 8px;
+      font-weight: 400;
+    }
+
+    .year {
+      font-size: 72px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 32px;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    }
+
+    .card {
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(212,175,55,0.2);
+      border-radius: 12px;
+      padding: 32px 28px;
+      margin-bottom: 28px;
+      text-align: left;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .card.fade-out {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .clip-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+      margin-bottom: 8px;
+    }
+
+    .clip-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 16px;
+    }
+
+    .meta {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(212,175,55,0.7);
+    }
+
+    .meta-value {
+      font-size: 15px;
+      color: rgba(255,255,255,0.85);
+      font-family: 'Georgia', serif;
+    }
+
+    .moment-badge {
+      display: inline-block;
+      background: rgba(212,175,55,0.15);
+      border: 1px solid rgba(212,175,55,0.3);
+      color: #d4af37;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-top: 14px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-family: 'Georgia', serif;
+      font-size: 15px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #d4af37;
+      color: #0a3d0a;
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      background: #e6c44d;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(212,175,55,0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.8);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+
+    .counter {
+      margin-top: 24px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="container">
+    <h1>The Masters Vault</h1>
+    <div class="year" id="year">—</div>
+
+    <div class="card" id="card">
+      <div class="clip-title" id="title">Loading...</div>
+      <div class="clip-subtitle" id="subtitle"></div>
+      <div class="meta">
+        <div class="meta-item">
+          <span class="meta-label">Player</span>
+          <span class="meta-value" id="player">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Round</span>
+          <span class="meta-value" id="round">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Timecode</span>
+          <span class="meta-value" id="timecode">—</span>
+        </div>
+      </div>
+      <div id="moment-container"></div>
+    </div>
+
+    <div class="buttons">
+      <a class="btn btn-primary" id="watch-btn" href="#" target="_blank" rel="noopener">
+        Watch Clip &rarr;
+      </a>
+      <button class="btn btn-secondary" id="shuffle-btn" onclick="shuffle()">
+        Shuffle
+      </button>
+    </div>
+
+    <div class="counter" id="counter"></div>
+  </div>
+
+  <script>
+    let clips = [];
+    let current = null;
+
+    function buildUrl(clip) {
+      const match = clip.cmsid.match(/masters_v1_(\d+)_en/);
+      const cmsNumber = match ? match[1] : clip.cmsid;
+      const start = clip.scenesummarizationstarttime;
+      const year = clip.video_year;
+      return `https://www.masters.com/en_US/watch/2024-03-27/${cmsNumber}/${year}_masters_final_round.html?t=${start}&subType=video_vault`;
+    }
+
+    function formatRound(r) {
+      if (!r) return '—';
+      const num = r.replace(/\D/g, '');
+      return num ? `Round ${num}` : r;
+    }
+
+    function shuffle() {
+      if (!clips.length) return;
+      const card = document.getElementById('card');
+      card.classList.add('fade-out');
+
+      setTimeout(() => {
+        let next;
+        do { next = clips[Math.floor(Math.random() * clips.length)]; }
+        while (clips.length > 1 && next === current);
+        current = next;
+
+        document.getElementById('year').textContent = next.video_year;
+        document.getElementById('title').textContent = next.clip_title;
+        document.getElementById('subtitle').textContent = next.clip_subtitle;
+        document.getElementById('player').textContent = next.full_name || '—';
+        document.getElementById('round').textContent = formatRound(next.round_number);
+        document.getElementById('timecode').textContent = next.timecode?.split('.')[0] || '—';
+        document.getElementById('watch-btn').href = buildUrl(next);
+
+        const mc = document.getElementById('moment-container');
+        mc.innerHTML = next.is_moment
+          ? '<span class="moment-badge">Key Moment</span>'
+          : '';
+
+        document.getElementById('counter').textContent =
+          `1 of ${clips.length.toLocaleString()} clips • 1968–2025`;
+
+        card.classList.remove('fade-out');
+      }, 300);
+    }
+
+    fetch('all_clips.json')
+      .then(r => r.json())
+      .then(data => { clips = data; shuffle(); })
+      .catch(() => {
+        document.getElementById('title').textContent = 'Failed to load clips';
+      });
+  </script>
+</body>
+</html>
