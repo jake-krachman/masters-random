@@ -56,7 +56,7 @@
 
     /* ---- Range slider ---- */
     .range-filter {
-      margin-bottom: 28px;
+      margin-bottom: 20px;
       padding: 0 4px;
       user-select: none;
     }
@@ -125,6 +125,49 @@
       color: rgba(255,255,255,0.35);
       margin-top: 6px;
       letter-spacing: 0.5px;
+    }
+
+    /* ---- Shot filters ---- */
+    .shot-filters {
+      margin-bottom: 28px;
+    }
+
+    .filter-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(212,175,55,0.5);
+      margin-bottom: 10px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .chip {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.55);
+      font-family: 'Georgia', serif;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip:hover {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.8);
+    }
+
+    .chip.active {
+      background: rgba(212,175,55,0.15);
+      border-color: rgba(212,175,55,0.4);
+      color: #d4af37;
     }
 
     /* ---- Card ---- */
@@ -289,6 +332,11 @@
       <div class="range-clip-count" id="range-clip-count"></div>
     </div>
 
+    <div class="shot-filters">
+      <div class="filter-label">Filter by shot</div>
+      <div class="chips" id="chips"></div>
+    </div>
+
     <div class="card" id="card">
       <div class="clip-title" id="title">Loading...</div>
       <div class="clip-subtitle" id="subtitle"></div>
@@ -330,6 +378,33 @@
   </div>
 
   <script>
+    // Augusta National pars
+    const HOLE_PAR = {
+      1:4, 2:5, 3:4, 4:3, 5:4, 6:3, 7:4, 8:5, 9:4,
+      10:4, 11:4, 12:3, 13:5, 14:4, 15:5, 16:3, 17:4, 18:4
+    };
+
+    // Parse hole and shot from clip title
+    function parseClip(clip) {
+      const m = clip.clip_title.match(/Hole No\. (\d+), Shot (\d+)/);
+      if (!m) return { hole: null, shot: null, par: null };
+      const hole = parseInt(m[1]);
+      return { hole, shot: parseInt(m[2]), par: HOLE_PAR[hole] };
+    }
+
+    // Filter definitions
+    const FILTERS = [
+      { label: 'All Shots', test: () => true },
+      { label: 'Tee Shots', test: (h, s, p) => s === 1 },
+      { label: 'Approaches on Par 4s', test: (h, s, p) => p === 4 && s === 2 },
+      { label: 'Approaches on Par 5s', test: (h, s, p) => p === 5 && (s === 2 || s === 3) },
+      { label: 'Shots into Par 3s', test: (h, s, p) => p === 3 && s === 1 },
+      { label: 'Putts', test: (h, s, p) => s === p || s === p - 1 },
+      { label: 'Amen Corner', test: (h, s, p) => h === 11 || h === 12 || h === 13 },
+      { label: 'Back 9', test: (h, s, p) => h >= 10 },
+      { label: 'Key Moments', test: (h, s, p, clip) => clip.is_moment },
+    ];
+
     let allClips = [];
     let filtered = [];
     let current = null;
@@ -337,6 +412,7 @@
     let loIdx = 0;
     let hiIdx = 0;
     let activeThumb = null;
+    let activeFilter = 0;
     let totalShuffles = 0;
 
     function updateShuffleCounter(count) {
@@ -358,13 +434,30 @@
         .catch(() => { updateShuffleCounter(++totalShuffles); });
     }
 
+    // Build filter chips
+    const chipsEl = document.getElementById('chips');
+    FILTERS.forEach((f, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (i === 0 ? ' active' : '');
+      chip.textContent = f.label;
+      chip.onclick = () => {
+        activeFilter = i;
+        document.querySelectorAll('.chip').forEach((c, j) => {
+          c.classList.toggle('active', j === i);
+        });
+        applyFilter();
+        shuffle();
+      };
+      chipsEl.appendChild(chip);
+    });
+
     const trackWrapper = document.getElementById('track-wrapper');
     const thumbLo = document.getElementById('thumb-lo');
     const thumbHi = document.getElementById('thumb-hi');
     const rangeFill = document.getElementById('range-fill');
     const loLabel = document.getElementById('range-lo-label');
     const hiLabel = document.getElementById('range-hi-label');
-    const clipCount = document.getElementById('range-clip-count');
+    const clipCountEl = document.getElementById('range-clip-count');
 
     function pctForIdx(i) {
       if (years.length <= 1) return 0;
@@ -395,13 +488,18 @@
     function applyFilter() {
       const lo = parseInt(years[loIdx]);
       const hi = parseInt(years[hiIdx]);
+      const shotTest = FILTERS[activeFilter].test;
+
       filtered = allClips.filter(c => {
         const y = parseInt(c.video_year);
-        return y >= lo && y <= hi;
+        if (y < lo || y > hi) return false;
+        if (activeFilter === 0) return true;
+        const { hole, shot, par } = parseClip(c);
+        if (hole === null && activeFilter !== 8) return false;
+        return shotTest(hole, shot, par, c);
       });
       current = null;
-      const rangeText = lo === hi ? `${lo}` : `${lo}\u2013${hi}`;
-      clipCount.textContent = `${filtered.length.toLocaleString()} clips in range`;
+      clipCountEl.textContent = `${filtered.length.toLocaleString()} clips match`;
     }
 
     function onPointerDown(e) {
@@ -409,7 +507,6 @@
       const pct = pctFromEvent(e);
       const loPct = pctForIdx(loIdx);
       const hiPct = pctForIdx(hiIdx);
-      // pick nearest thumb
       if (Math.abs(pct - loPct) <= Math.abs(pct - hiPct)) {
         activeThumb = 'lo';
         thumbLo.classList.add('active');
@@ -506,7 +603,7 @@
         loIdx = 0;
         hiIdx = years.length - 1;
         updateSliderUI();
-        clipCount.textContent = `${data.length.toLocaleString()} clips in range`;
+        clipCountEl.textContent = `${data.length.toLocaleString()} clips match`;
         shuffle();
       })
       .catch(() => {
