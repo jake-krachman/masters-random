@@ -15,7 +15,7 @@
       font-family: 'Georgia', serif;
       background: #0a3d0a;
       color: #fff;
-      overflow: hidden;
+      overflow-x: hidden;
     }
 
     .bg {
@@ -122,6 +122,35 @@
       margin-top: 14px;
     }
 
+    .year-filter {
+      margin-bottom: 28px;
+    }
+
+    .year-filter select {
+      appearance: none;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(212,175,55,0.3);
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Georgia', serif;
+      font-size: 14px;
+      padding: 10px 36px 10px 16px;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d4af37' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+
+    .year-filter select:hover {
+      background-color: rgba(255,255,255,0.12);
+    }
+
+    .year-filter select option {
+      background: #0a3d0a;
+      color: #fff;
+    }
+
     .buttons {
       display: flex;
       gap: 12px;
@@ -169,13 +198,35 @@
       color: rgba(255,255,255,0.3);
       letter-spacing: 1px;
     }
+
+    .footer {
+      margin-top: 32px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      line-height: 1.7;
+    }
+
+    .footer a {
+      color: rgba(212,175,55,0.5);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      color: #d4af37;
+    }
   </style>
 </head>
 <body>
   <div class="bg"></div>
   <div class="container">
     <h1>The Masters Vault</h1>
-    <div class="year" id="year">—</div>
+    <div class="year" id="year">&mdash;</div>
+
+    <div class="year-filter">
+      <select id="year-select" onchange="onYearChange()">
+        <option value="">All Years (1968&ndash;2025)</option>
+      </select>
+    </div>
 
     <div class="card" id="card">
       <div class="clip-title" id="title">Loading...</div>
@@ -183,15 +234,15 @@
       <div class="meta">
         <div class="meta-item">
           <span class="meta-label">Player</span>
-          <span class="meta-value" id="player">—</span>
+          <span class="meta-value" id="player">&mdash;</span>
         </div>
         <div class="meta-item">
           <span class="meta-label">Round</span>
-          <span class="meta-value" id="round">—</span>
+          <span class="meta-value" id="round">&mdash;</span>
         </div>
         <div class="meta-item">
           <span class="meta-label">Timecode</span>
-          <span class="meta-value" id="timecode">—</span>
+          <span class="meta-value" id="timecode">&mdash;</span>
         </div>
       </div>
       <div id="moment-container"></div>
@@ -207,10 +258,17 @@
     </div>
 
     <div class="counter" id="counter"></div>
+
+    <div class="footer">
+      You must be logged in at <a href="https://www.masters.com" target="_blank" rel="noopener">masters.com</a> to watch clips.<br>
+      This site is not affiliated with or endorsed by Augusta National Golf Club or the Masters Tournament.<br>
+      <a href="https://github.com/jake-krachman/masters-random" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
   </div>
 
   <script>
-    let clips = [];
+    let allClips = [];
+    let filtered = [];
     let current = null;
 
     function buildUrl(clip) {
@@ -222,28 +280,35 @@
     }
 
     function formatRound(r) {
-      if (!r) return '—';
+      if (!r) return '\u2014';
       const num = r.replace(/\D/g, '');
       return num ? `Round ${num}` : r;
     }
 
+    function onYearChange() {
+      const val = document.getElementById('year-select').value;
+      filtered = val ? allClips.filter(c => c.video_year === val) : allClips;
+      current = null;
+      shuffle();
+    }
+
     function shuffle() {
-      if (!clips.length) return;
+      if (!filtered.length) return;
       const card = document.getElementById('card');
       card.classList.add('fade-out');
 
       setTimeout(() => {
         let next;
-        do { next = clips[Math.floor(Math.random() * clips.length)]; }
-        while (clips.length > 1 && next === current);
+        do { next = filtered[Math.floor(Math.random() * filtered.length)]; }
+        while (filtered.length > 1 && next === current);
         current = next;
 
         document.getElementById('year').textContent = next.video_year;
         document.getElementById('title').textContent = next.clip_title;
         document.getElementById('subtitle').textContent = next.clip_subtitle;
-        document.getElementById('player').textContent = next.full_name || '—';
+        document.getElementById('player').textContent = next.full_name || '\u2014';
         document.getElementById('round').textContent = formatRound(next.round_number);
-        document.getElementById('timecode').textContent = next.timecode?.split('.')[0] || '—';
+        document.getElementById('timecode').textContent = next.timecode?.split('.')[0] || '\u2014';
         document.getElementById('watch-btn').href = buildUrl(next);
 
         const mc = document.getElementById('moment-container');
@@ -251,8 +316,9 @@
           ? '<span class="moment-badge">Key Moment</span>'
           : '';
 
+        const yearLabel = document.getElementById('year-select').value || '1968\u20132025';
         document.getElementById('counter').textContent =
-          `1 of ${clips.length.toLocaleString()} clips • 1968–2025`;
+          `${filtered.length.toLocaleString()} clips \u2022 ${yearLabel}`;
 
         card.classList.remove('fade-out');
       }, 300);
@@ -260,7 +326,22 @@
 
     fetch('all_clips.json')
       .then(r => r.json())
-      .then(data => { clips = data; shuffle(); })
+      .then(data => {
+        allClips = data;
+        filtered = data;
+
+        const years = [...new Set(data.map(c => c.video_year))].sort();
+        const sel = document.getElementById('year-select');
+        years.forEach(y => {
+          const opt = document.createElement('option');
+          opt.value = y;
+          const count = data.filter(c => c.video_year === y).length;
+          opt.textContent = `${y} (${count} clips)`;
+          sel.appendChild(opt);
+        });
+
+        shuffle();
+      })
       .catch(() => {
         document.getElementById('title').textContent = 'Failed to load clips';
       });
