@@ -54,6 +54,80 @@
       text-shadow: 0 2px 20px rgba(0,0,0,0.3);
     }
 
+    /* ---- Range slider ---- */
+    .range-filter {
+      margin-bottom: 28px;
+      padding: 0 4px;
+      user-select: none;
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #d4af37;
+      margin-bottom: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .range-track-wrapper {
+      position: relative;
+      height: 36px;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .range-track {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 4px;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.12);
+      border-radius: 2px;
+    }
+
+    .range-fill {
+      position: absolute;
+      top: 50%;
+      height: 4px;
+      transform: translateY(-50%);
+      background: #d4af37;
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    .range-thumb {
+      position: absolute;
+      top: 50%;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #d4af37;
+      border: 2px solid #0a3d0a;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      z-index: 2;
+      transition: box-shadow 0.15s;
+    }
+
+    .range-thumb:hover, .range-thumb.active {
+      box-shadow: 0 0 0 6px rgba(212,175,55,0.2);
+    }
+
+    .range-thumb.active {
+      cursor: grabbing;
+    }
+
+    .range-clip-count {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ---- Card ---- */
     .card {
       background: rgba(255,255,255,0.07);
       backdrop-filter: blur(12px);
@@ -120,35 +194,6 @@
       padding: 4px 10px;
       border-radius: 4px;
       margin-top: 14px;
-    }
-
-    .year-filter {
-      margin-bottom: 28px;
-    }
-
-    .year-filter select {
-      appearance: none;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(212,175,55,0.3);
-      border-radius: 8px;
-      color: #fff;
-      font-family: 'Georgia', serif;
-      font-size: 14px;
-      padding: 10px 36px 10px 16px;
-      cursor: pointer;
-      outline: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d4af37' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-    }
-
-    .year-filter select:hover {
-      background-color: rgba(255,255,255,0.12);
-    }
-
-    .year-filter select option {
-      background: #0a3d0a;
-      color: #fff;
     }
 
     .buttons {
@@ -222,10 +267,18 @@
     <h1>The Masters Vault</h1>
     <div class="year" id="year">&mdash;</div>
 
-    <div class="year-filter">
-      <select id="year-select" onchange="onYearChange()">
-        <option value="">All Years (1968&ndash;2025)</option>
-      </select>
+    <div class="range-filter">
+      <div class="range-labels">
+        <span id="range-lo-label">1968</span>
+        <span id="range-hi-label">2025</span>
+      </div>
+      <div class="range-track-wrapper" id="track-wrapper">
+        <div class="range-track"></div>
+        <div class="range-fill" id="range-fill"></div>
+        <div class="range-thumb" id="thumb-lo"></div>
+        <div class="range-thumb" id="thumb-hi"></div>
+      </div>
+      <div class="range-clip-count" id="range-clip-count"></div>
     </div>
 
     <div class="card" id="card">
@@ -270,6 +323,101 @@
     let allClips = [];
     let filtered = [];
     let current = null;
+    let years = [];
+    let loIdx = 0;
+    let hiIdx = 0;
+    let activeThumb = null;
+
+    const trackWrapper = document.getElementById('track-wrapper');
+    const thumbLo = document.getElementById('thumb-lo');
+    const thumbHi = document.getElementById('thumb-hi');
+    const rangeFill = document.getElementById('range-fill');
+    const loLabel = document.getElementById('range-lo-label');
+    const hiLabel = document.getElementById('range-hi-label');
+    const clipCount = document.getElementById('range-clip-count');
+
+    function pctForIdx(i) {
+      if (years.length <= 1) return 0;
+      return (i / (years.length - 1)) * 100;
+    }
+
+    function idxFromPct(pct) {
+      return Math.round(pct / 100 * (years.length - 1));
+    }
+
+    function pctFromEvent(e) {
+      const rect = trackWrapper.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      return Math.max(0, Math.min(100, x / rect.width * 100));
+    }
+
+    function updateSliderUI() {
+      const loPct = pctForIdx(loIdx);
+      const hiPct = pctForIdx(hiIdx);
+      thumbLo.style.left = loPct + '%';
+      thumbHi.style.left = hiPct + '%';
+      rangeFill.style.left = loPct + '%';
+      rangeFill.style.width = (hiPct - loPct) + '%';
+      loLabel.textContent = years[loIdx];
+      hiLabel.textContent = years[hiIdx];
+    }
+
+    function applyFilter() {
+      const lo = parseInt(years[loIdx]);
+      const hi = parseInt(years[hiIdx]);
+      filtered = allClips.filter(c => {
+        const y = parseInt(c.video_year);
+        return y >= lo && y <= hi;
+      });
+      current = null;
+      const rangeText = lo === hi ? `${lo}` : `${lo}\u2013${hi}`;
+      clipCount.textContent = `${filtered.length.toLocaleString()} clips in range`;
+    }
+
+    function onPointerDown(e) {
+      e.preventDefault();
+      const pct = pctFromEvent(e);
+      const loPct = pctForIdx(loIdx);
+      const hiPct = pctForIdx(hiIdx);
+      // pick nearest thumb
+      if (Math.abs(pct - loPct) <= Math.abs(pct - hiPct)) {
+        activeThumb = 'lo';
+        thumbLo.classList.add('active');
+      } else {
+        activeThumb = 'hi';
+        thumbHi.classList.add('active');
+      }
+      onPointerMove(e);
+    }
+
+    function onPointerMove(e) {
+      if (!activeThumb) return;
+      e.preventDefault();
+      const pct = pctFromEvent(e);
+      const idx = idxFromPct(pct);
+      if (activeThumb === 'lo') {
+        loIdx = Math.min(idx, hiIdx);
+      } else {
+        hiIdx = Math.max(idx, loIdx);
+      }
+      updateSliderUI();
+    }
+
+    function onPointerUp() {
+      if (!activeThumb) return;
+      thumbLo.classList.remove('active');
+      thumbHi.classList.remove('active');
+      activeThumb = null;
+      applyFilter();
+      shuffle();
+    }
+
+    trackWrapper.addEventListener('mousedown', onPointerDown);
+    trackWrapper.addEventListener('touchstart', onPointerDown, { passive: false });
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('touchmove', onPointerMove, { passive: false });
+    document.addEventListener('mouseup', onPointerUp);
+    document.addEventListener('touchend', onPointerUp);
 
     function buildUrl(clip) {
       const match = clip.cmsid.match(/masters_v1_(\d+)_en/);
@@ -283,13 +431,6 @@
       if (!r) return '\u2014';
       const num = r.replace(/\D/g, '');
       return num ? `Round ${num}` : r;
-    }
-
-    function onYearChange() {
-      const val = document.getElementById('year-select').value;
-      filtered = val ? allClips.filter(c => c.video_year === val) : allClips;
-      current = null;
-      shuffle();
     }
 
     function shuffle() {
@@ -316,9 +457,10 @@
           ? '<span class="moment-badge">Key Moment</span>'
           : '';
 
-        const yearLabel = document.getElementById('year-select').value || '1968\u20132025';
+        const lo = years[loIdx], hi = years[hiIdx];
+        const rangeText = lo === hi ? lo : `${lo}\u2013${hi}`;
         document.getElementById('counter').textContent =
-          `${filtered.length.toLocaleString()} clips \u2022 ${yearLabel}`;
+          `${filtered.length.toLocaleString()} clips \u2022 ${rangeText}`;
 
         card.classList.remove('fade-out');
       }, 300);
@@ -329,17 +471,11 @@
       .then(data => {
         allClips = data;
         filtered = data;
-
-        const years = [...new Set(data.map(c => c.video_year))].sort();
-        const sel = document.getElementById('year-select');
-        years.forEach(y => {
-          const opt = document.createElement('option');
-          opt.value = y;
-          const count = data.filter(c => c.video_year === y).length;
-          opt.textContent = `${y} (${count} clips)`;
-          sel.appendChild(opt);
-        });
-
+        years = [...new Set(data.map(c => c.video_year))].sort();
+        loIdx = 0;
+        hiIdx = years.length - 1;
+        updateSliderUI();
+        clipCount.textContent = `${data.length.toLocaleString()} clips in range`;
         shuffle();
       })
       .catch(() => {
