@@ -1,5 +1,7 @@
 # Masters Vault Randomizer
 
+[https://masters-vault-random.com](https://masters-vault-random.com/)
+
 A simple site that shuffles through nearly 10,000 clips from the Masters Tournament Video Vault (1968-2025). Click shuffle to get a random moment from Masters history.
 
 ## Features
