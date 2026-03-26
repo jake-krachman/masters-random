@@ -244,6 +244,14 @@
       letter-spacing: 1px;
     }
 
+    .shuffle-counter {
+      margin-top: 28px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+    }
+
     .footer {
       margin-top: 32px;
       font-size: 11px;
@@ -312,6 +320,8 @@
 
     <div class="counter" id="counter"></div>
 
+    <div class="shuffle-counter" id="shuffle-counter"></div>
+
     <div class="footer">
       You must be logged in at <a href="https://www.masters.com" target="_blank" rel="noopener">masters.com</a> to watch clips.<br>
       This site is not affiliated with or endorsed by Augusta National Golf Club or the Masters Tournament.<br>
@@ -327,6 +337,26 @@
     let loIdx = 0;
     let hiIdx = 0;
     let activeThumb = null;
+    let totalShuffles = 0;
+
+    function updateShuffleCounter(count) {
+      totalShuffles = count;
+      document.getElementById('shuffle-counter').textContent =
+        count.toLocaleString() + ' clips shuffled';
+    }
+
+    // Load current count on page load
+    fetch('https://api.counterapi.dev/v1/masters-random/shuffles')
+      .then(r => r.json())
+      .then(d => { if (d.count) updateShuffleCounter(d.count); })
+      .catch(() => {});
+
+    function bumpShuffleCount() {
+      fetch('https://api.counterapi.dev/v1/masters-random/shuffles/up')
+        .then(r => r.json())
+        .then(d => { if (d.count) updateShuffleCounter(d.count); })
+        .catch(() => { updateShuffleCounter(++totalShuffles); });
+    }
 
     const trackWrapper = document.getElementById('track-wrapper');
     const thumbLo = document.getElementById('thumb-lo');
@@ -462,6 +492,7 @@
         document.getElementById('counter').textContent =
           `${filtered.length.toLocaleString()} clips \u2022 ${rangeText}`;
 
+        bumpShuffleCount();
         card.classList.remove('fade-out');
       }, 300);
     }
